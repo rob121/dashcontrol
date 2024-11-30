@@ -33,6 +33,18 @@ var refresh time.Duration
 var scale string
 var modkey string
 var modifier input.Modifier
+var unloader string = `var all = document.getElementsByTagName("*");
+	for (var i=0, max=all.length; i < max; i++) {
+		if(all[i].getAttribute("onbeforeunload")) {
+			all[i].setAttribute("onbeforeunload", null);
+		}
+	}
+	window.onbeforeunload = null;
+   
+    window.alert = function alert (message) {
+        console.log (message);
+    }
+`
 
 func main() {
 
@@ -65,7 +77,7 @@ func main() {
 
 	started := make(chan bool)
 
-	cmd = exec.Command(chrome, "--disable-prompt-on-repost", "--ignore-profile-directory-if-not-exists", "--profile-directory=None", fmt.Sprintf("--remote-debugging-port=%s", port), "--start-fullscreen")
+	cmd = exec.Command(chrome, "--disable-popup-blocking", "--disable-prompt-on-repost", "--ignore-profile-directory-if-not-exists", "--profile-directory=None", fmt.Sprintf("--remote-debugging-port=%s", port), "--start-fullscreen")
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, "DISPLAY=:0")
 
@@ -118,7 +130,7 @@ func main() {
 		for range t.C {
 
 			chromedp.Run(ctx, chromedp.Reload(),
-				chromedp.Evaluate(`window.onbeforeunload = null;`, nil),
+				chromedp.Evaluate(unloader, nil),
 			)
 
 		}
@@ -150,7 +162,7 @@ func run(verbose bool, urlstr, nav string, d time.Duration) error {
 	if err := chromedp.Run(ctx,
 		page.BringToFront(),
 		chromedp.Navigate(nav),
-		chromedp.Evaluate(`window.onbeforeunload = null;`, nil),
+		chromedp.Evaluate(unloader, nil),
 	); err != nil {
 		return fmt.Errorf("Failed getting body of %s: %v", nav, err)
 	}
@@ -174,6 +186,7 @@ func httpScaleUpHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err := chromedp.Run(ctx,
 		chromedp.KeyEvent("+", chromedp.KeyModifiers(modifier)),
+		chromedp.Evaluate(unloader, nil),
 	); err == nil {
 		fmt.Fprintf(w, "OK")
 	} else {
@@ -186,6 +199,7 @@ func httpScaleDownHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err := chromedp.Run(ctx,
 		chromedp.KeyEvent("-", chromedp.KeyModifiers(modifier)),
+		chromedp.Evaluate(unloader, nil),
 	); err == nil {
 		fmt.Fprintf(w, "OK")
 	} else {
@@ -230,6 +244,7 @@ func httpNavigateHandler(w http.ResponseWriter, r *http.Request) {
 func httpRefreshHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err := chromedp.Run(ctx,
+		chromedp.Evaluate(unloader, nil),
 		chromedp.Reload(),
 	); err == nil {
 		fmt.Fprintf(w, "OK")
