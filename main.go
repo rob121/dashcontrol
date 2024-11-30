@@ -7,8 +7,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/chromedp/cdproto/input"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
+	"github.com/chromedp/chromedp/kb"
 	"log"
 	"net/http"
 	"os"
@@ -28,9 +30,13 @@ var verbose bool
 var urlstr string
 var d time.Duration
 var refresh time.Duration
+var scale string
+var modkey string
+var modifier input.Modifier
 
 func main() {
 
+	flag.StringVar(&scale, "scale", "1", "Scale factor 1=100%")
 	flag.StringVar(&chrome, "chrome", "", "Chrome Path")
 	flag.StringVar(&port, "port", "9222", "Chrome Port")
 	flag.StringVar(&nav, "nav", "https://www.duckduckgo.com/", "nav")
@@ -44,16 +50,22 @@ func main() {
 		switch runtime.GOOS {
 		case "windows":
 			chrome = "chrome.exe"
+			modkey = kb.Control
+			modifier = input.ModifierCtrl
 		case "darwin":
 			chrome = `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`
+			modkey = kb.Meta
+			modifier = input.ModifierCommand
 		case "linux":
 			chrome = `/usr/bin/google-chrome`
+			modkey = kb.Control
+			modifier = input.ModifierCtrl
 		}
 	}
 
 	started := make(chan bool)
 
-	cmd = exec.Command(chrome, "--profile-directory=Default", fmt.Sprintf("--remote-debugging-port=%s", port), "--start-fullscreen")
+	cmd = exec.Command(chrome, "--disable-prompt-on-repost", "--ignore-profile-directory-if-not-exists", "--profile-directory=None", fmt.Sprintf("--remote-debugging-port=%s", port), "--start-fullscreen")
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, "DISPLAY=:0")
 
@@ -105,7 +117,9 @@ func main() {
 
 		for range t.C {
 
-			chromedp.Run(ctx, chromedp.Reload())
+			chromedp.Run(ctx, chromedp.Reload(),
+				chromedp.Evaluate(`window.onbeforeunload = null;`, nil),
+			)
 
 		}
 
@@ -136,6 +150,7 @@ func run(verbose bool, urlstr, nav string, d time.Duration) error {
 	if err := chromedp.Run(ctx,
 		page.BringToFront(),
 		chromedp.Navigate(nav),
+		chromedp.Evaluate(`window.onbeforeunload = null;`, nil),
 	); err != nil {
 		return fmt.Errorf("Failed getting body of %s: %v", nav, err)
 	}
@@ -150,7 +165,33 @@ func run(verbose bool, urlstr, nav string, d time.Duration) error {
 func httpServer() {
 	http.HandleFunc("/nav", httpNavigateHandler)
 	http.HandleFunc("/refresh", httpRefreshHandler)
+	http.HandleFunc("/scaleup", httpScaleUpHandler)
+	http.HandleFunc("/scaledown", httpScaleDownHandler)
 	http.ListenAndServe(":3333", nil)
+}
+
+func httpScaleUpHandler(w http.ResponseWriter, r *http.Request) {
+
+	if err := chromedp.Run(ctx,
+		chromedp.KeyEvent("+", chromedp.KeyModifiers(modifier)),
+	); err == nil {
+		fmt.Fprintf(w, "OK")
+	} else {
+		fmt.Fprintf(w, err.Error())
+	}
+
+}
+
+func httpScaleDownHandler(w http.ResponseWriter, r *http.Request) {
+
+	if err := chromedp.Run(ctx,
+		chromedp.KeyEvent("-", chromedp.KeyModifiers(modifier)),
+	); err == nil {
+		fmt.Fprintf(w, "OK")
+	} else {
+		fmt.Fprintf(w, err.Error())
+	}
+
 }
 
 func cleanTabs() {
