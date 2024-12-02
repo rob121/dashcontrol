@@ -17,9 +17,13 @@ import (
 	"os/exec"
 	"os/signal"
 	"runtime"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
+
+//scaling
 
 var ctx context.Context
 var chrome string
@@ -30,9 +34,10 @@ var verbose bool
 var urlstr string
 var d time.Duration
 var refresh time.Duration
-var scale string
+var scale int
 var modkey string
 var modifier input.Modifier
+var zoomsteps []int = []int{25, 33, 50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200, 250, 300, 400, 500}
 var xtool string
 var unloader string = `var all = document.getElementsByTagName("*");
 	for (var i=0, max=all.length; i < max; i++) {
@@ -49,7 +54,7 @@ var unloader string = `var all = document.getElementsByTagName("*");
 
 func main() {
 
-	flag.StringVar(&scale, "scale", "1", "Scale factor 1=100%")
+	flag.IntVar(&scale, "Zoom", 100, "Zoom factor 100%")
 	flag.StringVar(&xtool, "xtool", "/usr/bin/xdotool", "Xdo Tool Path")
 	flag.StringVar(&chrome, "chrome", "", "Chrome Path")
 	flag.StringVar(&port, "port", "9222", "Chrome Port")
@@ -79,7 +84,7 @@ func main() {
 
 	started := make(chan bool)
 	//"--profile-directory=None"
-	cmd = exec.Command(chrome, "--disable-popup-blocking", "--disable-prompt-on-repost", "--ignore-profile-directory-if-not-exists", fmt.Sprintf("--remote-debugging-port=%s", port), "--start-fullscreen")
+	cmd = exec.Command(chrome, "--disable-popup-blocking", "--disable-prompt-on-repost", "--ignore-profile-directory-if-not-exists", fmt.Sprintf("--remote-debugging-port=%s", port), "--start-fullscreen", "--kiosk", "--no-prompts", "--no-dialogs")
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, "DISPLAY=:0")
 
@@ -125,6 +130,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	ScaleTo(scale)
+
 	go func() {
 
 		t := time.NewTicker(refresh)
@@ -144,16 +151,46 @@ func main() {
 
 func SendKey(keypress string) {
 
-	cmd2 := exec.Command(xtool, keypress)
+	parts := strings.Split(keypress, " ")
+
+	cmd2 := exec.Command(xtool, parts...)
 	cmd2.Env = os.Environ()
 	cmd2.Env = append(cmd.Env, "DISPLAY=:0")
 
 	go func() {
-		err2 := cmd.Run()
+		stdout, err2 := cmd2.CombinedOutput()
 		if err2 != nil {
-
+			fmt.Println("Send Key Error", err2.Error())
+		}
+		if len(string(stdout)) > 1 {
+			fmt.Println(string(stdout))
 		}
 	}()
+}
+
+//Chrome scaling is by keyboard, to do 100% you go -7 down
+
+func ScaleTo(to int) {
+
+	//reset
+	time.Sleep(100 * time.Millisecond)
+	//this ensures we are at the bottom
+	for i := 0; i < 20; i++ {
+		//send 20
+		SendKey("key Control_L+minus")
+		time.Sleep(25 * time.Millisecond)
+	}
+
+	time.Sleep(25 * time.Millisecond)
+
+	for _, v := range zoomsteps {
+
+		if to <= v {
+			break
+		}
+		SendKey("key Control_L+plus")
+		time.Sleep(25 * time.Millisecond)
+	}
 }
 
 func SendEnter() {
@@ -207,6 +244,7 @@ func httpServer() {
 	http.HandleFunc("/nav", httpNavigateHandler)
 	http.HandleFunc("/refresh", httpRefreshHandler)
 	http.HandleFunc("/scaleup", httpScaleUpHandler)
+	http.HandleFunc("/scale/{to}", httpScaleHandler)
 	http.HandleFunc("/scaledown", httpScaleDownHandler)
 	http.ListenAndServe(":3333", nil)
 }
@@ -214,6 +252,15 @@ func httpServer() {
 func httpScaleUpHandler(w http.ResponseWriter, r *http.Request) {
 
 	SendZoomIn()
+	fmt.Fprintf(w, "OK")
+
+}
+
+func httpScaleHandler(w http.ResponseWriter, r *http.Request) {
+
+	to_raw := r.PathValue("to")
+	to, _ := strconv.Atoi(to_raw)
+	ScaleTo(to)
 	fmt.Fprintf(w, "OK")
 
 }
