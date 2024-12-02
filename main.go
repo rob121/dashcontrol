@@ -137,7 +137,7 @@ func main() {
 		t := time.NewTicker(refresh)
 
 		for range t.C {
-			SendEnter()
+			SendEnter() //we send enter since chrome sometimes has pop up "are you sure" dialogs.
 			chromedp.Run(ctx, chromedp.Reload(),
 				chromedp.Evaluate(unloader, nil),
 			)
