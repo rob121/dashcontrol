@@ -76,8 +76,8 @@ func main() {
 	}
 
 	started := make(chan bool)
-
-	cmd = exec.Command(chrome, "--disable-popup-blocking", "--disable-prompt-on-repost", "--ignore-profile-directory-if-not-exists", "--profile-directory=None", fmt.Sprintf("--remote-debugging-port=%s", port), "--start-fullscreen")
+	//"--profile-directory=None"
+	cmd = exec.Command(chrome, "--disable-popup-blocking", "--disable-prompt-on-repost", "--ignore-profile-directory-if-not-exists", fmt.Sprintf("--remote-debugging-port=%s", port), "--start-fullscreen")
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, "DISPLAY=:0")
 
