@@ -33,6 +33,7 @@ var refresh time.Duration
 var scale string
 var modkey string
 var modifier input.Modifier
+var xtool string
 var unloader string = `var all = document.getElementsByTagName("*");
 	for (var i=0, max=all.length; i < max; i++) {
 		if(all[i].getAttribute("onbeforeunload")) {
@@ -49,6 +50,7 @@ var unloader string = `var all = document.getElementsByTagName("*");
 func main() {
 
 	flag.StringVar(&scale, "scale", "1", "Scale factor 1=100%")
+	flag.StringVar(&xtool, "xtool", "/usr/bin/xdotool", "Xdo Tool Path")
 	flag.StringVar(&chrome, "chrome", "", "Chrome Path")
 	flag.StringVar(&port, "port", "9222", "Chrome Port")
 	flag.StringVar(&nav, "nav", "https://www.duckduckgo.com/", "nav")
@@ -128,7 +130,7 @@ func main() {
 		t := time.NewTicker(refresh)
 
 		for range t.C {
-
+			SendEnter()
 			chromedp.Run(ctx, chromedp.Reload(),
 				chromedp.Evaluate(unloader, nil),
 			)
@@ -138,6 +140,33 @@ func main() {
 	}()
 
 	select {}
+}
+
+func SendKey(keypress string) {
+
+	cmd2 := exec.Command(xtool, keypress)
+	cmd2.Env = os.Environ()
+	cmd2.Env = append(cmd.Env, "DISPLAY=:0")
+
+	go func() {
+		err2 := cmd.Run()
+		if err2 != nil {
+
+		}
+	}()
+}
+
+func SendEnter() {
+
+	SendKey("key Return")
+}
+
+func SendZoomIn() {
+	SendKey("key Control_L+plus")
+}
+
+func SendZoomOut() {
+	SendKey("key Control_L+minus")
 }
 
 func run(verbose bool, urlstr, nav string, d time.Duration) error {
@@ -184,27 +213,15 @@ func httpServer() {
 
 func httpScaleUpHandler(w http.ResponseWriter, r *http.Request) {
 
-	if err := chromedp.Run(ctx,
-		chromedp.KeyEvent("+", chromedp.KeyModifiers(modifier)),
-		chromedp.Evaluate(unloader, nil),
-	); err == nil {
-		fmt.Fprintf(w, "OK")
-	} else {
-		fmt.Fprintf(w, err.Error())
-	}
+	SendZoomIn()
+	fmt.Fprintf(w, "OK")
 
 }
 
 func httpScaleDownHandler(w http.ResponseWriter, r *http.Request) {
 
-	if err := chromedp.Run(ctx,
-		chromedp.KeyEvent("-", chromedp.KeyModifiers(modifier)),
-		chromedp.Evaluate(unloader, nil),
-	); err == nil {
-		fmt.Fprintf(w, "OK")
-	} else {
-		fmt.Fprintf(w, err.Error())
-	}
+	SendZoomOut()
+	fmt.Fprintf(w, "OK")
 
 }
 
@@ -243,8 +260,9 @@ func httpNavigateHandler(w http.ResponseWriter, r *http.Request) {
 
 func httpRefreshHandler(w http.ResponseWriter, r *http.Request) {
 
+	SendEnter()
+
 	if err := chromedp.Run(ctx,
-		chromedp.Evaluate(unloader, nil),
 		chromedp.Reload(),
 	); err == nil {
 		fmt.Fprintf(w, "OK")
