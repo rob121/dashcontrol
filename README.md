@@ -3,6 +3,10 @@
 
 This program opens a chrome window full screen to a url.  The purpose of creating this was to open dashboard windows on remote machines.
 
+### Dependencies
+
+Requires xdotool and chrome browser
+
 ### Usage
 
 ```

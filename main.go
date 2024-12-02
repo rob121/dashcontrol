@@ -113,6 +113,8 @@ func main() {
 				os.Exit(1)
 			}
 
+			SendEnter()
+
 			os.Exit(1)
 		}
 	}()
