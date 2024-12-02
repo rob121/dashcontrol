@@ -178,10 +178,10 @@ func ScaleTo(to int) {
 	for i := 0; i < 20; i++ {
 		//send 20
 		SendKey("key Control_L+minus")
-		time.Sleep(25 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 	}
 
-	time.Sleep(25 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	for _, v := range zoomsteps {
 
@@ -189,7 +189,7 @@ func ScaleTo(to int) {
 			break
 		}
 		SendKey("key Control_L+plus")
-		time.Sleep(25 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 	}
 }
 
