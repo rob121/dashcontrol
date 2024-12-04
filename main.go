@@ -1,5 +1,3 @@
-// Command remote is a chromedp example demonstrating how to connect to an
-// existing Chrome DevTools instance using a remote WebSocket URL.
 package main
 
 import (
@@ -54,7 +52,7 @@ var unloader string = `var all = document.getElementsByTagName("*");
 
 func main() {
 
-	flag.IntVar(&scale, "Zoom", 100, "Zoom factor 100%")
+	flag.IntVar(&scale, "zoom", 100, "Zoom factor 100%")
 	flag.StringVar(&xtool, "xtool", "/usr/bin/xdotool", "Xdo Tool Path")
 	flag.StringVar(&chrome, "chrome", "", "Chrome Path")
 	flag.StringVar(&port, "port", "9222", "Chrome Port")
@@ -248,6 +246,7 @@ func run(verbose bool, urlstr, nav string, d time.Duration) error {
 
 func httpServer() {
 	http.HandleFunc("/nav", httpNavigateHandler)
+        http.HandleFunc("/reset",httpResetHandler)
 	http.HandleFunc("/refresh", httpRefreshHandler)
 	http.HandleFunc("/scaleup", httpScaleUpHandler)
 	http.HandleFunc("/scale/{to}", httpScaleHandler)
@@ -310,6 +309,22 @@ func httpNavigateHandler(w http.ResponseWriter, r *http.Request) {
 
 	cleanTabs()
 }
+
+func httpResetHandler(w http.ResponseWriter, r *http.Request) {
+        
+        
+        if err := chromedp.Run(ctx,
+                page.BringToFront(),
+                chromedp.Navigate(nav),
+        ); err == nil {
+                fmt.Fprintf(w, "OK")
+        } else {
+                fmt.Fprintf(w, err.Error())
+        }
+        
+        cleanTabs()
+}
+   
 
 func httpRefreshHandler(w http.ResponseWriter, r *http.Request) {
 
