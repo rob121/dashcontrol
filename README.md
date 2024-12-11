@@ -33,13 +33,34 @@ Requires xdotool and chrome browser
 
 ### Api
 
-New Url
+#### New Url
 ```
 curl 127.0.0.1/nav?url=https://new.url.com
 ```
 
-Reload Existing
+#### Reload Existing
 
 ```
 curl 127.0.0.1/refresh
 ```
+
+#### Refresh original url
+
+```
+curl 127.0.0.1/reset
+```
+
+#### Scale Up Browser Window (chrome zoom)
+
+```
+curl 127.0.0.1/scaleup
+```
+
+```
+curl 127.0.0.1/down
+```
+
+```
+curl 127.0.0.1/scale/{int}
+```
+
